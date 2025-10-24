@@ -12,8 +12,24 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 USERS = "users.csv"
 SESSION_TTL = timedelta(10)
-session = {}
-write_urls = {"/", "/login", "/logout"}
+sessions = {}
+write_urls = ["/", "/login", "/logout"]
+
+@app.middleware("http")
+async def check_session(request: Request, call_next):
+    if request.url.path.startswith("/static") or request.url.path in write_urls:
+        return await call_next(request)
+    
+    session_id = request.cookies.get("session_id")
+    if session_id not in sessions:
+        return RedirectResponse(url="/")
+    
+    created_session = sessions[session_id]
+    if datetime.now() - created_session > SESSION_TTL:
+        del sessions[session_id]
+        return RedirectResponse(url="/")
+
+    return await call_next(request)
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/login", response_class=HTMLResponse)
@@ -35,7 +51,7 @@ def login(request: Request,
         stored_password = str(user_row['password'].values[0])
         if stored_password == password:
             session_id = str(uuid.uuid4())
-            session[session_id] = datetime.now()
+            sessions[session_id] = datetime.now()
             response = RedirectResponse(url="/home", status_code=302)
             response.set_cookie(key="session_id", value=session_id)
             return response
@@ -44,6 +60,18 @@ def login(request: Request,
                                       {"request": request,
                                        "error": "Неверный логин или пароль"})
 
+@app.get("/logout", response_class=HTMLResponse)
+def logout(request: Request):
+    session_id = request.cookies.get("session_id")
+    print(session_id)
 
+    if session_id in sessions:
+        del sessions[session_id]
 
-
+    response = templates.TemplateResponse("login.html", {
+        "request": request,
+        "message": "Сессия завершена",
+        "url": "/login"
+    })
+    response.delete_cookie("session_id")
+    return response
