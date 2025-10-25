@@ -1,10 +1,13 @@
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import uuid
 import pandas as pd
 from datetime import datetime, timedelta
+from starlette.exceptions import HTTPException
+from functools import wraps
+import csv
 
 
 app = FastAPI()
@@ -75,3 +78,15 @@ def logout(request: Request):
     })
     response.delete_cookie("session_id")
     return response
+
+@app.get("/404", response_class=HTMLResponse)
+def get_home_page(request:Request):
+    return templates.TemplateResponse("404.html", {"request":request})
+
+@app.exception_handler(404)
+def not_found_handler(request: Request, exc):
+    session_id = request.cookies.get("session_id")
+    if session_id in sessions:
+        return RedirectResponse(url="/404")
+    else:
+        return RedirectResponse(url="/")
