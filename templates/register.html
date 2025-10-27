@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Регистрация</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="register-container">
+        <h1>Регистрация</h1>
+
+        {% if error %}
+          <div class="error-message" style="color: red;">{{ error }}</div>
+        {% endif %}
+        {% if message %}
+          <div class="success-message" style="color: green;">{{ message }}</div>
+        {% endif %}
+
+        <form method="post" action="/register">
+            <div class="form-group">
+                <label for="username">Имя пользователя:</label>
+                <input type="text" id="username" name="username" placeholder="Введите имя" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Пароль:</label>
+                <input type="password" id="password" name="password" placeholder="Введите пароль" required>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">Подтвердите пароль:</label>
+                <input type="password" id="confirm_password" name="confirm_password" placeholder="Повторите пароль" required>
+            </div>
+
+            <button type="submit">Зарегистрироваться</button>
+        </form>
+
+        <p>Уже есть аккаунт? <a href="/login">Войти</a></p>
+    </div>
+</body>
+</html>
