@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 import uuid
 import pandas as pd
 from datetime import datetime, timedelta
+import datetime
 from starlette.exceptions import HTTPException
 from functools import wraps
 import csv
@@ -15,32 +16,76 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 USERS = "users.csv"
-SESSION_TTL = timedelta(10)
+SESSION_TTL = timedelta(1)
 sessions = {}
-write_urls = ["/", "/login", "/logout", "/register"]
+white_urls = ["/", "/login", "/logout", "/register"]
+LOG_FILE = 'log.csv'
+
+def is_log_updated(log_file_path, last_check_time):
+    if not os.path.exists(log_file_path):
+        return False, last_check_time
+    
+    current_mtime = os.path.getmtime(log_file_path)
+    
+    if current_mtime > last_check_time:
+        return True, current_mtime
+    else:
+        return False, last_check_time
+
+if not os.path.exists(LOG_FILE):
+    with open(LOG_FILE, mode='w', newline='', encoding='utf-8-sig') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Дата', 'Время', 'Функция'])
+
+def log(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        now = datetime.datetime.now()
+        date_str = now.strftime('%Y-%m-%d')
+        time_str = now.strftime('%H:%M:%S')
+        func_name = func.__name__
+        with open(LOG_FILE, mode='a', newline='', encoding='utf-8-sig') as file:
+            writer = csv.writer(file)
+            writer.writerow([date_str, time_str, func_name])
+
+        return func(*args, **kwargs)
+    return wrapper
 
 @app.middleware("http")
+@log
 async def check_session(request: Request, call_next):
-    if request.url.path.startswith("/static") or request.url.path in write_urls:
+    if request.url.path.startswith("/static") or request.url.path in white_urls:
         return await call_next(request)
     
     session_id = request.cookies.get("session_id")
-    if session_id not in sessions:
+    if not session_id:
         return RedirectResponse(url="/")
+
+    if session_id not in sessions:
+        response = RedirectResponse(url="/")
+        response.delete_cookie("session_id")
+        return response
     
     created_session = sessions[session_id]
-    if datetime.now() - created_session > SESSION_TTL:
+    current_time = datetime.datetime.now()
+    if current_time - created_session > SESSION_TTL:
         del sessions[session_id]
-        return RedirectResponse(url="/")
+        response = RedirectResponse(url="/login")
+        response.delete_cookie("session_id")
+        return response
+    
+    sessions[session_id] = current_time
 
     return await call_next(request)
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/register", response_class=HTMLResponse)
+@log
 def get_home_page(request:Request):
     return templates.TemplateResponse("register.html", {"request":request})
 
 @app.post("/register")
+@log
 def register(request: Request,
              username: str = Form(...),
              password: str = Form(...),
@@ -56,37 +101,42 @@ def register(request: Request,
                                       {"request": request,
                                        "error": "Пароли не совпадают"})
     
-    new_user = pd.DataFrame([{"user": username.strip(), "password": password.strip()}])
+    copy_password = password.encode()
+    salt = username.encode()
+    hash_password = hashlib.pbkdf2_hmac('sha256', copy_password, salt, 100)
+    new_user = pd.DataFrame([{"user": username.strip(), "password": hash_password}])
     new_user.to_csv(USERS, mode='a', header=False, index=False)
     return templates.TemplateResponse("login.html",
                                       {"request": request,
                                        "message": "Регистрация успешна. Теперь войдите"})
 
 @app.get("/login", response_class=HTMLResponse)
+@log
 def get_login_page(request:Request):
     return templates.TemplateResponse("login.html", {"request":request})
 
 @app.get("/home", response_class=HTMLResponse)
+@log
 def get_home_page(request:Request):
     return templates.TemplateResponse("home.html", {"request":request})
 
 @app.post("/login")
+@log
 def login(request: Request,
           username: str = Form(...),
           password: str = Form(...)):
     users = pd.read_csv(USERS, encoding='utf-8-sig')
     user_row = users.loc[users['user'].str.strip() == username]
-
     if not user_row.empty:
         stored_password = str(user_row['password'].values[0])
-        if stored_password == password:
+        copy_password = password.encode()
+        salt = username.encode()
+        hash_password = hashlib.pbkdf2_hmac('sha256', copy_password, salt, 100)
+        if stored_password == str(hash_password):
             session_id = str(uuid.uuid4())
-            sessions[session_id] = datetime.now()
+            sessions[session_id] = datetime.datetime.now()
             response = RedirectResponse(url="/home", status_code=302)
             response.set_cookie(key="session_id", value=session_id)
-            copy_password = password.encode()
-            salt = os.urandom(16)
-            dk = hashlib.pbkdf2_hmac('sha256', copy_password, salt, 100)
             return response
 
     return templates.TemplateResponse("login.html",
@@ -94,6 +144,7 @@ def login(request: Request,
                                        "error": "Неверный логин или пароль"})
 
 @app.get("/logout", response_class=HTMLResponse)
+@log
 def logout(request: Request):
     session_id = request.cookies.get("session_id")
     print(session_id)
@@ -110,10 +161,12 @@ def logout(request: Request):
     return response
 
 @app.get("/404", response_class=HTMLResponse)
+@log
 def get_home_page(request:Request):
     return templates.TemplateResponse("404.html", {"request":request})
 
 @app.exception_handler(404)
+@log
 def not_found_handler(request: Request, exc):
     session_id = request.cookies.get("session_id")
     if session_id in sessions:
@@ -121,3 +174,4 @@ def not_found_handler(request: Request, exc):
     else:
         return RedirectResponse(url="/")
     
+
