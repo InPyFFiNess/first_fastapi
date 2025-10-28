@@ -17,7 +17,7 @@ templates = Jinja2Templates(directory="templates")
 USERS = "users.csv"
 SESSION_TTL = timedelta(10)
 sessions = {}
-write_urls = ["/", "/login", "/logout"]
+write_urls = ["/", "/login", "/logout", "/register"]
 
 @app.middleware("http")
 async def check_session(request: Request, call_next):
@@ -44,15 +44,23 @@ def get_home_page(request:Request):
 def register(request: Request,
              username: str = Form(...),
              password: str = Form(...),
-             check_password: str = Form(...)):
+             confirm_password: str = Form(...)):
     users = pd.read_csv(USERS, encoding='utf-8-sig')
-    user_row = users.loc[users['user'].str.strip() == username]
-    
-    if not user_row.empty:
+    if username.strip() in users['user'].str.strip().values:
         return templates.TemplateResponse("register.html",
                                       {"request": request,
-                                       "error": "Такой логин уже существует"})
+                                       "error": "Такой пользователь уже существует"})
     
+    if password != confirm_password:
+        return templates.TemplateResponse("register.html",
+                                      {"request": request,
+                                       "error": "Пароли не совпадают"})
+    
+    new_user = pd.DataFrame([{"user": username.strip(), "password": password.strip()}])
+    new_user.to_csv(USERS, mode='a', header=False, index=False)
+    return templates.TemplateResponse("login.html",
+                                      {"request": request,
+                                       "message": "Регистрация успешна. Теперь войдите"})
 
 @app.get("/login", response_class=HTMLResponse)
 def get_login_page(request:Request):
