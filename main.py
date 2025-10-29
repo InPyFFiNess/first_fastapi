@@ -11,12 +11,13 @@ from functools import wraps
 import csv
 import hashlib
 import os
+import asyncio
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 USERS = "users.csv"
-SESSION_TTL = timedelta(1)
+SESSION_TTL = timedelta(minutes=3)
 sessions = {}
 white_urls = ["/", "/login", "/logout", "/register"]
 LOG_FILE = 'log.csv'
@@ -65,18 +66,18 @@ async def check_session(request: Request, call_next):
         response = RedirectResponse(url="/")
         response.delete_cookie("session_id")
         return response
-    
+
     created_session = sessions[session_id]
     current_time = datetime.datetime.now()
     if current_time - created_session > SESSION_TTL:
         del sessions[session_id]
-        response = RedirectResponse(url="/login")
+        response = RedirectResponse(url="/")
         response.delete_cookie("session_id")
         return response
     
     sessions[session_id] = current_time
 
-    return await call_next(request)
+    return await call_next(request) 
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/register", response_class=HTMLResponse)
@@ -104,7 +105,7 @@ def register(request: Request,
     copy_password = password.encode()
     salt = username.encode()
     hash_password = hashlib.pbkdf2_hmac('sha256', copy_password, salt, 100)
-    new_user = pd.DataFrame([{"user": username.strip(), "password": hash_password}])
+    new_user = pd.DataFrame([{"user": username.strip(), "password": hash_password, "role": "user"}])
     new_user.to_csv(USERS, mode='a', header=False, index=False)
     return templates.TemplateResponse("login.html",
                                       {"request": request,
@@ -119,6 +120,12 @@ def get_login_page(request:Request):
 @log
 def get_home_page(request:Request):
     return templates.TemplateResponse("home.html", {"request":request})
+
+@app.get("/admins", response_class=HTMLResponse)
+@log
+def get_admin_page(request:Request):
+    return templates.TemplateResponse("admins.html", {"request":request})
+
 
 @app.post("/login")
 @log
