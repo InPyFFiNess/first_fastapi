@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, Cookie
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from typing import Annotated, Union
 import uuid
 import pandas as pd
 from datetime import datetime, timedelta
@@ -82,7 +83,7 @@ async def check_session(request: Request, call_next):
 @app.get("/", response_class=HTMLResponse)
 @app.get("/register", response_class=HTMLResponse)
 @log
-def get_home_page(request:Request):
+def get_register_page(request:Request):
     return templates.TemplateResponse("register.html", {"request":request})
 
 @app.post("/register")
@@ -124,8 +125,11 @@ def get_home_page(request:Request):
 @app.get("/admins", response_class=HTMLResponse)
 @log
 def get_admin_page(request:Request):
-    return templates.TemplateResponse("admins.html", {"request":request})
-
+    role = str(request.cookies.get("role"))
+    if role == "admin":
+        return templates.TemplateResponse("admins.html", {"request":request})
+    else:
+        return templates.TemplateResponse("403.html", {"request":request})
 
 @app.post("/login")
 @log
@@ -136,6 +140,7 @@ def login(request: Request,
     user_row = users.loc[users['user'].str.strip() == username]
     if not user_row.empty:
         stored_password = str(user_row['password'].values[0])
+        stored_role = str(user_row['role'].values[0])
         copy_password = password.encode()
         salt = username.encode()
         hash_password = hashlib.pbkdf2_hmac('sha256', copy_password, salt, 100)
@@ -144,6 +149,8 @@ def login(request: Request,
             sessions[session_id] = datetime.datetime.now()
             response = RedirectResponse(url="/home", status_code=302)
             response.set_cookie(key="session_id", value=session_id)
+            response.set_cookie(key="role", value=stored_role)
+            response.set_cookie(key="username", value=username)
             return response
 
     return templates.TemplateResponse("login.html",
@@ -169,16 +176,24 @@ def logout(request: Request):
 
 @app.get("/404", response_class=HTMLResponse)
 @log
-def get_home_page(request:Request):
+def get_404_page(request:Request):
     return templates.TemplateResponse("404.html", {"request":request})
 
 @app.exception_handler(404)
 @log
-def not_found_handler(request: Request, exc):
+def not_found_page(request: Request, exc):
     session_id = request.cookies.get("session_id")
     if session_id in sessions:
         return RedirectResponse(url="/404")
     else:
         return RedirectResponse(url="/")
+    
+
+@app.get("/403", response_class=HTMLResponse)
+@log
+def get_403_page(request:Request):
+    return templates.TemplateResponse("403.html", {"request":request})
+
+
     
 
