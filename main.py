@@ -13,26 +13,19 @@ import csv
 import hashlib
 import os
 import asyncio
+import uvicorn
+import ssl
 
 app = FastAPI()
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+ssl_context.load_cert_chain('security/cert.pem', keyfile='security/key.pem')
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 USERS = "users.csv"
 SESSION_TTL = timedelta(minutes=3)
 sessions = {}
 white_urls = ["/", "/login", "/logout", "/register"]
-LOG_FILE = 'log.csv'
-
-def is_log_updated(log_file_path, last_check_time):
-    if not os.path.exists(log_file_path):
-        return False, last_check_time
-    
-    current_mtime = os.path.getmtime(log_file_path)
-    
-    if current_mtime > last_check_time:
-        return True, current_mtime
-    else:
-        return False, last_check_time
+LOG_FILE = 'log.csv'    
 
 if not os.path.exists(LOG_FILE):
     with open(LOG_FILE, mode='w', newline='', encoding='utf-8-sig') as file:
@@ -161,7 +154,6 @@ def login(request: Request,
 @log
 def logout(request: Request):
     session_id = request.cookies.get("session_id")
-    print(session_id)
 
     if session_id in sessions:
         del sessions[session_id]
@@ -184,6 +176,7 @@ def get_404_page(request:Request):
 def not_found_page(request: Request, exc):
     session_id = request.cookies.get("session_id")
     if session_id in sessions:
+        print("here")
         return RedirectResponse(url="/404")
     else:
         return RedirectResponse(url="/")
@@ -194,6 +187,11 @@ def not_found_page(request: Request, exc):
 def get_403_page(request:Request):
     return templates.TemplateResponse("403.html", {"request":request})
 
-
-    
-
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host="127.0.0.1",
+        port=443,
+        ssl_certfile='security/cert.pem',
+        ssl_keyfile='security/key.pem',
+    )
