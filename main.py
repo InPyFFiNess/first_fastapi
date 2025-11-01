@@ -8,6 +8,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import datetime
 from starlette.exceptions import HTTPException
+from starlette.responses import Response
 from functools import wraps
 import csv
 import hashlib
@@ -35,15 +36,25 @@ if not os.path.exists(LOG_FILE):
 def log(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
+        request: Request = kwargs.get("request") or next((arg for arg in args if isinstance(arg, Request)), None)
+        username = request.cookies.get("username") if request else None
+
+        if not username:
+            username = "anonymus"
+        
+        response: Response = func(*args, **kwargs)
+        status_code = response.status_code if isinstance(response, Response) else ""
+
         now = datetime.datetime.now()
         date_str = now.strftime('%Y-%m-%d')
         time_str = now.strftime('%H:%M:%S')
         func_name = func.__name__
+
         with open(LOG_FILE, mode='a', newline='', encoding='utf-8-sig') as file:
             writer = csv.writer(file)
-            writer.writerow([date_str, time_str, func_name])
+            writer.writerow([date_str, time_str, func_name, username or "anonymous", status_code])
 
-        return func(*args, **kwargs)
+        return response
     return wrapper
 
 @app.middleware("http")
@@ -186,12 +197,3 @@ def not_found_page(request: Request, exc):
 @log
 def get_403_page(request:Request):
     return templates.TemplateResponse("403.html", {"request":request})
-
-if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        host="127.0.0.1",
-        port=443,
-        ssl_certfile='security/cert.pem',
-        ssl_keyfile='security/key.pem',
-    )
