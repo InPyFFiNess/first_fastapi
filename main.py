@@ -21,6 +21,7 @@ app = FastAPI()
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 ssl_context.load_cert_chain('security/cert.pem', keyfile='security/key.pem')
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/images", StaticFiles(directory="sorces/images"), name="images")
 templates = Jinja2Templates(directory="templates")
 USERS = "users.csv"
 SESSION_TTL = timedelta(minutes=3)
@@ -175,6 +176,8 @@ def logout(request: Request):
         "url": "/login"
     })
     response.delete_cookie("session_id")
+    response.delete_cookie("username")
+    response.delete_cookie("role")
     return response
 
 @app.get("/404", response_class=HTMLResponse)
@@ -197,3 +200,12 @@ def not_found_page(request: Request, exc):
 @log
 def get_403_page(request:Request):
     return templates.TemplateResponse("403.html", {"request":request})
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host="127.0.0.1",
+        port=443,
+        ssl_certfile='security/cert.pem',
+        ssl_keyfile='security/key.pem',
+    )   
