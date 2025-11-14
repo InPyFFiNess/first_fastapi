@@ -4,18 +4,108 @@
     <meta charset="UTF-8">
     <title>Регистрация</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/static/style.css">
     <link rel="icon" href="/sorces/images/favicon.ico" type="image/x-icon">
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #74ebd5 0%, #9face6 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .register-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: #222;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus {
+            border-color: #2196F3;
+            outline: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        button:hover {
+            background-color: #1976D2;
+            transform: scale(1.03);
+        }
+
+        .error-message {
+            margin-bottom: 15px;
+            font-size: 0.95rem;
+            color: #d32f2f;
+        }
+
+        .success-message {
+            margin-bottom: 15px;
+            font-size: 0.95rem;
+            color: #388e3c;
+        }
+
+        a#login {
+            color: #2196F3;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        a#login:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
     <div class="register-container">
         <h1>Регистрация</h1>
 
         {% if error %}
-          <div class="error-message" style="color: red;">{{ error }}</div>
+          <div class="error-message">{{ error }}</div>
         {% endif %}
         {% if message %}
-          <div class="success-message" style="color: green;">{{ message }}</div>
+          <div class="success-message">{{ message }}</div>
         {% endif %}
 
         <form method="post" action="/register">

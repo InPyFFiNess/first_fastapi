@@ -3,13 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Admin Panel</title>
     <link rel="icon" href="/sorces/images/favicon.ico" type="image/x-icon">
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1f1c2c 0%, #928dab 100%);
+            color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #ffffff;
+            text-shadow: 2px 2px 6px rgba(0,0,0,0.4);
+        }
+
+        p {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            color: #ddd;
+        }
+
+        a {
+            display: inline-block;
+            margin: 10px;
+            padding: 12px 28px;
+            text-decoration: none;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        #change_page {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        #change_page:hover {
+            background-color: #1976D2;
+            transform: scale(1.05);
+        }
+
+        #logout {
+            background-color: #e91e63;
+            color: white;
+        }
+
+        #logout:hover {
+            background-color: #c2185b;
+            transform: scale(1.05);
+        }
+
+        footer {
+            position: absolute;
+            bottom: 15px;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+    </style>
 </head>
 <body>
-    <h1>Hello admin!</h1>
-    <a id="change_page" href="/home">домой</a>
-    <a id="logout" href="/logout">покинуть нас</a>
+    <h1>🔑 Hello, Admin!</h1>
+    <p>Добро пожаловать в панель управления. Выберите действие:</p>
+    <a id="change_page" href="/home">🏠 Вернуться домой</a>
+    <a id="logout" href="/logout">🚪 Выйти из системы</a>
+
+    <footer>Автоматический выход через 3 минуты бездействия ⏳</footer>
+
     <script>
         const INACTIVITY_LIMIT = 3 * 60 * 1000;
 
@@ -18,7 +86,7 @@
         function resetTimer() {
             clearTimeout(inactivityTimer);
             inactivityTimer = setTimeout(() => {
-            window.location.href = "/";
+                window.location.href = "/";
             }, INACTIVITY_LIMIT);
         }
 
